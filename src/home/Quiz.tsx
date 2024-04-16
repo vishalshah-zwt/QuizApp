@@ -5,6 +5,8 @@ import { MyContext } from '../context/MyContext';
 import QuestionGrid from '../components/QuestionGrid';
 import Result from '../components/Result';
 import { useTimer } from 'react-timer-hook';
+import QuizValidationSchema from '../schema/QuizValidation';
+import Timer from '../components/Timer';
 
 
 interface initialValues {
@@ -12,14 +14,17 @@ interface initialValues {
     result?: object,
     answers?: any
     isSubmitted?: boolean,
+    visitedQuestions?: Array<number>
+    timer?: any
 }
 const Quiz: React.FC = () => {
-    
+
     // const storage = ((localStorage.getItem('Data')) ? JSON.parse((localStorage.getItem('Data') || '{}') : '{}')) 
     const storage = localStorage.getItem('Data') ? (JSON.parse(localStorage.getItem('Data') || '{}')) : {}
     const [pointerOfCurrentQuestion, setPointerOfCurrentQuestion] = useState<number>(Number(storage.pointerOfCurrentQuestion) || 0)
-    
- 
+
+
+
 
     const initialValues: initialValues = {
         currentQuestion: storage?.currentQuestion || quiz[pointerOfCurrentQuestion],
@@ -29,27 +34,46 @@ const Quiz: React.FC = () => {
             wrongAnswers: [],
             skippedQuestions: []
         },
-        answers: storage?.answers || ([] || {}),
-        isSubmitted: storage?.isSubmitted || false ,
+        answers: storage?.answers || [
+            { answer: '', index: '' }
+        ],
+        visitedQuestions: [0],
+        isSubmitted: storage?.isSubmitted || false,
+        
     }
 
-    const { values, handleChange, setFieldValue , handleSubmit} = useFormik({
+    const { values, handleChange, setFieldValue, handleSubmit, validateForm } = useFormik({
         initialValues,
-        onSubmit: (value,action) => {
+        validationSchema: QuizValidationSchema,
+        onSubmit: (value, action) => {
 
         }
     })
 
+    
+  
+   /*  const timer = new Date()
+    timer.setSeconds(10) */
 
     //EVENT HANDLERS STARTED
+    const [errors, setErrors] = useState<any>()
+    const handleNext = async (e: any) => {
+        const errorsVariable: any = await validateForm()
+        setErrors(errorsVariable)
+        console.log(errorsVariable, "errorsVariable")
+        if (Object.keys(errorsVariable).length === 0 || errorsVariable.answers[pointerOfCurrentQuestion] === undefined) {
+            const answersVariable = values.answers
+            answersVariable.push({ answer: '', index: '' })
+            setFieldValue(`answers`, answersVariable)
 
-    const handleNext = (e:any) => {
-        console.log(e.target.value,"****")
-        if (pointerOfCurrentQuestion < quiz.length - 1) {
-            setPointerOfCurrentQuestion(pointerOfCurrentQuestion + 1)
-            setFieldValue('currentQuestion', quiz[pointerOfCurrentQuestion + 1])
+            if (pointerOfCurrentQuestion < quiz.length - 1) {
+                setPointerOfCurrentQuestion(pointerOfCurrentQuestion + 1)
+                setFieldValue('currentQuestion', quiz[pointerOfCurrentQuestion + 1])
+                let visitedQuestionsVariable = values?.visitedQuestions
+                visitedQuestionsVariable?.push(pointerOfCurrentQuestion + 1)
+                setFieldValue('visitedQuestions', visitedQuestionsVariable)
+            }
         }
-
 
     }
     const handlePrevious = (e: object) => {
@@ -57,7 +81,8 @@ const Quiz: React.FC = () => {
     }
 
     const handleCustomChange = (e: any) => {
-        const answerVariable = values.answers
+        console.log(e.target.value, "&&")
+        /* const answerVariable = values.answers
         if (values?.answers?.find((answer: any) => answer.index === pointerOfCurrentQuestion)) {
             values?.answers?.map((answer: any) => {
                 if (answer.index === pointerOfCurrentQuestion) {
@@ -71,11 +96,18 @@ const Quiz: React.FC = () => {
         else {
             answerVariable.push({ answer: e.target.value, index: pointerOfCurrentQuestion })
         }
-        setFieldValue(`answers`, answerVariable)
+        setFieldValue(`answers`, answerVariable) */
+
+        setFieldValue(`answers[${pointerOfCurrentQuestion}]`, {
+            answer: e.target.value,
+            index: pointerOfCurrentQuestion
+        }
+        )
     }
 
     const calculateResult = () => {
         setFieldValue('isSubmitted', true)
+        let allAnswersVariable: any = []
         let correctAnswersVariable: any = []
         let wrongAnswersVariable: any = []
         let skippedQuestionsVariable: any = []
@@ -83,30 +115,32 @@ const Quiz: React.FC = () => {
 
         values?.answers?.map((answer: any) => {
             if (quiz[answer.index].answer === answer.answer) {
-                correctAnswersVariable.push({question:quiz[answer.index],index:answer.index})
+                correctAnswersVariable.push({ question: quiz[answer.index], index: answer.index })
+                allAnswersVariable.push({ question: quiz[answer.index], index: answer.index, answerType: "right" })
                 score += 1
             }
             else {
-                wrongAnswersVariable.push({ question: quiz[answer.index].question, answer: answer.answer ,index:answer.index})
+                wrongAnswersVariable.push({ question: quiz[answer.index].question, answer: answer.answer, index: answer.index })
+                allAnswersVariable.push({ question: quiz[answer.index], index: answer.index, answerType: "wrong" })
             }
 
         })
 
 
-        quiz?.map((question,indx)=>{
-          if(!values?.answers?.find((elem:any)=>indx === elem.index)){
-                skippedQuestionsVariable.push({question:question,index:indx})
-          }
+        quiz?.map((question, indx) => {
+            if (!values?.answers?.find((elem: any) => indx === elem.index)) {
+                skippedQuestionsVariable.push({ question: question, index: indx })
+            }
         })
-        
+
 
         setFieldValue('result.skippedQuestions', skippedQuestionsVariable)
         setFieldValue('result.correctAnswers', correctAnswersVariable)
         setFieldValue('result.score', score)
         setFieldValue('result.wrongAnswers', wrongAnswersVariable)
-        pause()
+        setFieldValue('result.allAnswers', allAnswersVariable)
     }
-    
+
     const handleReset = () => {
         localStorage.removeItem('Data')
         localStorage.removeItem('pointerOfCurrentQuestion')
@@ -118,63 +152,41 @@ const Quiz: React.FC = () => {
             wrongAnswers: [],
             skippedQuestions: []
         })
-        setFieldValue('answers', [] || {})
+        setFieldValue('answers', [{ answer: '', index: '' }])
         setFieldValue('isSubmitted', false)
+        setFieldValue('visitedQuestions', [0])
         const time = new Date();
-        time.setSeconds(time.getSeconds() + (60 * quiz.length));
-        restart(time)
+        time.setSeconds(time.getSeconds() + (30));
     }
 
-    useEffect(()=>{
-        if(values.isSubmitted === true)
-            {
-                const attendeesVariable = localStorage.getItem('Attendees') ? (JSON.parse(localStorage.getItem('Attendees') || '{}') ) :  []
-                attendeesVariable.push(values.result)
-                localStorage.setItem('Attendees',JSON.stringify(attendeesVariable) )
-            } 
-    },[values.isSubmitted])
+    useEffect(() => {
+        if (values.isSubmitted === true) {
+            const attendeesVariable = localStorage.getItem('Attendees') ? (JSON.parse(localStorage.getItem('Attendees') || '{}')) : []
+            attendeesVariable.push(values.result)
+            localStorage.setItem('Attendees', JSON.stringify(attendeesVariable))
+        }
+    }, [values.isSubmitted])
+
+
+
  
-    //EVENT HANDLERS ENDED
-    
-    //TIMER STARTED
-    const expiryTimestamp =new Date()
-    
-    expiryTimestamp.setSeconds(60 * quiz.length)
- 
-    const {
-        totalSeconds,
-        seconds,
-        minutes,
-        hours,
-        days,
-        isRunning,
-        start,
-        pause,
-        resume,
-        restart,
-    } = useTimer({ expiryTimestamp, onExpire:calculateResult });
 
 
     //STORING DATA TO LOCAL STORAGE
     localStorage.setItem('Data', JSON.stringify(values))
     localStorage.setItem('pointerOfCurrentQuestion', String(pointerOfCurrentQuestion))
-   
     
     
-
-    
-    
-   
     return (
         <>
-            <MyContext.Provider value={{ pointerOfCurrentQuestion, setPointerOfCurrentQuestion, values }}>
+            <MyContext.Provider value={{ pointerOfCurrentQuestion, setPointerOfCurrentQuestion, values, validateForm, setErrors }}>
+                <Timer />
 
                 <div className='SuperContainer'>
-                
-                    <p>{hours}:{minutes}:{seconds}</p>
+
                     {
                         values?.isSubmitted === false ?
-                            <>
+                        <>
                                 <div className='QuestionsContainer border  my-6 mx-auto w-[60%]'>
                                     <p className='text-xl'>
                                         <b>{pointerOfCurrentQuestion + 1}</b>. {quiz?.[pointerOfCurrentQuestion]?.question}
@@ -184,10 +196,10 @@ const Quiz: React.FC = () => {
                                             <input
                                                 id="optionA"
                                                 type="radio"
-                                                value={(values?.answers?.[pointerOfCurrentQuestion] == '') ? values?.answers?.[pointerOfCurrentQuestion] : 'A'}
                                                 onChange={handleCustomChange}
-                                                checked={((values?.answers?.find(((item: any) => item?.index === pointerOfCurrentQuestion)))?.answer === 'A')}
-                                                name={`answers.${[pointerOfCurrentQuestion]}`}
+                                                checked={values?.answers[pointerOfCurrentQuestion]?.answer === 'A'}
+                                                value='A'
+                                                name={`answers.${[pointerOfCurrentQuestion]}.answer`}
                                                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                                             />
                                             <label htmlFor="optionA" className="ms-2 text-lg font-medium text-gray-900 cursor-pointer dark:text-gray-300"><b>A.</b> {quiz?.[pointerOfCurrentQuestion].A}</label>
@@ -196,10 +208,10 @@ const Quiz: React.FC = () => {
                                             <input
                                                 id="optionB"
                                                 type="radio"
-                                                checked={((values?.answers?.find(((item: any) => item?.index === pointerOfCurrentQuestion)))?.answer === 'B')}
-                                                value={(values?.answers?.[pointerOfCurrentQuestion] == '') ? values?.answers?.[pointerOfCurrentQuestion] : 'B'}
                                                 onChange={handleCustomChange}
-                                                name={`answers.${[pointerOfCurrentQuestion]}`}
+                                                checked={values?.answers[pointerOfCurrentQuestion]?.answer === 'B'}
+                                                value='B'
+                                                name={`answers.${[pointerOfCurrentQuestion]}.answer`}
                                                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                                             />
                                             <label htmlFor="optionB" className="ms-2 text-lg font-medium text-gray-900 cursor-pointer dark:text-gray-300"><b>B.</b> {quiz?.[pointerOfCurrentQuestion].B}</label>
@@ -208,10 +220,10 @@ const Quiz: React.FC = () => {
                                             <input
                                                 id="optionC"
                                                 type="radio"
-                                                checked={((values?.answers?.find(((item: any) => item?.index === pointerOfCurrentQuestion)))?.answer === 'C')}
-                                                value={(values?.answers?.[pointerOfCurrentQuestion] == '') ? values?.answers?.[pointerOfCurrentQuestion] : 'C'}
                                                 onChange={handleCustomChange}
-                                                name={`answers.${[pointerOfCurrentQuestion]}`}
+                                                checked={values?.answers[pointerOfCurrentQuestion]?.answer === 'C'}
+                                                value='C'
+                                                name={`answers.${[pointerOfCurrentQuestion]}.answer`}
                                                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                                             />
                                             <label htmlFor="optionC" className="ms-2 text-lg font-medium text-gray-900 cursor-pointer dark:text-gray-300"><b>C.</b> {quiz?.[pointerOfCurrentQuestion].C}</label>
@@ -220,10 +232,10 @@ const Quiz: React.FC = () => {
                                             <input
                                                 id="optionD"
                                                 type="radio"
-                                                checked={((values?.answers?.find(((item: any) => item?.index === pointerOfCurrentQuestion)))?.answer === 'D')}
-                                                value={(values?.answers?.[pointerOfCurrentQuestion] == '') ? values?.answers?.[pointerOfCurrentQuestion] : 'D'}
                                                 onChange={handleCustomChange}
-                                                name={`answers.${[pointerOfCurrentQuestion]}`}
+                                                checked={values?.answers[pointerOfCurrentQuestion]?.answer === 'D'}
+                                                value='D'
+                                                name={`answers.${[pointerOfCurrentQuestion]}.answer`}
                                                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                                             />
                                             <label htmlFor="optionD" className="ms-2 text-lg font-medium text-gray-900 cursor-pointer dark:text-gray-300"><b>D.</b> {quiz?.[pointerOfCurrentQuestion].D}</label>
@@ -253,6 +265,7 @@ const Quiz: React.FC = () => {
                                                     type="button"
                                                     className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-lg px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"
                                                     onClick={handleNext}
+
                                                 >
                                                     Next
                                                 </button>
@@ -271,13 +284,7 @@ const Quiz: React.FC = () => {
                                             </>
 
                                     }
-                                    <button
-                                        type="button"
-                                        className="focus:outline-none text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-lg px-5 py-2.5 me-2 mb-2 dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-800"
-                                        onClick={handleReset}
-                                    >
-                                        Restart Quiz
-                                    </button>
+                                    
                                 </div >
                                 <QuestionGrid />
                             </>

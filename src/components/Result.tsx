@@ -29,7 +29,6 @@ function Result() {
 
         }
     }) */
-    console.log(values?.result?.wrongAnswers)
     return (
         <>
             <div className=' my-5 flex justify-center font-bold text-2xl'>
@@ -55,22 +54,25 @@ function Result() {
 
                             </div>
                         }
-                        values?.result?.wrongAnswers?.map((value: any, index: number) => {
-                            if (index === value?.index) {
-                                return <div key={index} className='my-5'>
-                                    <p className='Question'>{index + 1}. {value?.question}</p>
-                                    <p className={(value.answer == 'A') ? 'bg-red-400	' : ''}> A. {value?.A} </p>
-                                    <p className={(value.answer == 'B') ? 'bg-red-400	' : ''}> B. {value?.B} </p>
-                                    <p className={(value.answer == 'A') ? 'bg-red-400	' : ''}> A. {value?.C} </p>
-                                    <p className={(value.answer == 'A') ? 'bg-red-400	' : ''}> A. {value?.D} </p>
-                                    
-
-                                </div>
-                            }
-
-                        })
+                        
                     })
                 }
+              {/*   {
+                    quiz?.map((question,index)=>{
+                        if (values?.result?.wrongAnswers?.find((elem: any) => elem.index === index)) {
+                            return <div key={index} className='my-5'>
+                                <p className='Question'>{index + 1}. {question?.question}</p>
+                                <p className={(question?.answer === 'A') ? 'bg-green-700	' : ''}> A. {question?.A} </p>
+                                <p className={(question?.answer === 'B') ? 'bg-green-700	' : ''}> B. {question?.B} </p>
+                                <p className={(question?.answer === 'C') ? 'bg-green-700	' : ''}> C. {question?.C} </p>
+                                <p className={(question?.answer === 'D') ? 'bg-green-700	' : ''}> D. {question?.D} </p>
+
+                            </div>
+                        }
+                    })
+                } */}
+
+              
             </div>
         </>
     )
