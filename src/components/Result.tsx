@@ -6,29 +6,8 @@ function Result() {
     const { pointerOfCurrentQuestion, setPointerOfCurrentQuestion, values } = useContext(MyContext);
 
 
-    /* const storage = localStorage.getItem('Data') ? (JSON.parse(localStorage.getItem('Data') || '{}')) : {}
-    const [pointerOfCurrentQuestion, setPointerOfCurrentQuestion] = useState<number>(Number(storage.pointerOfCurrentQuestion) || 0)
-    
- 
 
-    const initialValues: initialValues = {
-        currentQuestion: storage?.currentQuestion || quiz[pointerOfCurrentQuestion],
-        result: storage?.result || {
-            score: 0,
-            correctAnswers: [],
-            wrongAnswers: [],
-            skippedQuestions: []
-        },
-        answers: storage?.answers || ([] || {}),
-        isSubmitted: storage?.isSubmitted || false ,
-    }
-
-    const { values, handleChange, setFieldValue , handleSubmit} = useFormik({
-        initialValues,
-        onSubmit: (value,action) => {
-
-        }
-    }) */
+    console.log(values?.updatedAnswers, "UpdatedAnswers")
     return (
         <>
             <div className=' my-5 flex justify-center font-bold text-2xl'>
@@ -39,9 +18,12 @@ function Result() {
                 <br />
                 <br />
                 Wrong Answers are  : {values.result.wrongAnswers.length} Questions Out Of {quiz.length}
+                <br />
+                <br />
+                You Took : {values?.timeTaken}  out of {values?.totalTime}
             </div>
 
-            <div className='border'>
+            {/* <div className='border'>
                 {
                     quiz?.map((questions, index) => {
                         if (values?.result?.correctAnswers?.find((elem: any) => elem.index === index)) {
@@ -57,22 +39,28 @@ function Result() {
                         
                     })
                 }
-              {/*   {
-                    quiz?.map((question,index)=>{
-                        if (values?.result?.wrongAnswers?.find((elem: any) => elem.index === index)) {
-                            return <div key={index} className='my-5'>
-                                <p className='Question'>{index + 1}. {question?.question}</p>
-                                <p className={(question?.answer === 'A') ? 'bg-green-700	' : ''}> A. {question?.A} </p>
-                                <p className={(question?.answer === 'B') ? 'bg-green-700	' : ''}> B. {question?.B} </p>
-                                <p className={(question?.answer === 'C') ? 'bg-green-700	' : ''}> C. {question?.C} </p>
-                                <p className={(question?.answer === 'D') ? 'bg-green-700	' : ''}> D. {question?.D} </p>
-
-                            </div>
-                        }
-                    })
-                } */}
 
               
+            </div> */}
+
+            <div className='border'>
+                
+                {   
+                    values?.updatedAnswers?.map((data: any, index: number) => {
+                        
+                        return <div key={index} className='my-5'>
+                            <p className='Question font-bold'>{index + 1}. {data?.question}</p>
+                            <p className={(data?.selectedAns === "" && data?.correctAnswer === "A") ? 'bg-yellow-400' : (data?.selectedAns === "A" && data?.correctAnswer == data?.selectedAns) ? 'bg-green-700' : (data?.selectedAns === "A" && data?.correctAnswer !== data?.selectedAns) ?  'bg-red-700' : (data?.correctAnswer =='A') ?'bg-green-700' : ''}> A. {data?.option1} </p>
+                            <p className={(data?.selectedAns === "" && data?.correctAnswer === "B") ? 'bg-yellow-400' :(data?.selectedAns === "B" && data?.correctAnswer == data?.selectedAns) ? 'bg-green-700' : (data?.selectedAns === "B" && data?.correctAnswer !== data?.selectedAns) ?  'bg-red-700' : (data?.correctAnswer =='B') ?'bg-green-700' : ''}> B. {data?.option2} </p>
+                            <p className={(data?.selectedAns === "" && data?.correctAnswer === "C") ? 'bg-yellow-400' :(data?.selectedAns === "C" && data?.correctAnswer == data?.selectedAns) ? 'bg-green-700' : (data?.selectedAns === "C" && data?.correctAnswer !== data?.selectedAns) ?  'bg-red-700' : (data?.correctAnswer =='C') ?'bg-green-700' : ''}> C. {data?.option3} </p>
+                            <p className={(data?.selectedAns === "" && data?.correctAnswer === "D") ? 'bg-yellow-400' :(data?.selectedAns === "D" && data?.correctAnswer == data?.selectedAns) ? 'bg-green-700' : (data?.selectedAns === "D" && data?.correctAnswer !== data?.selectedAns) ?  'bg-red-700' : (data?.correctAnswer =='D') ? 'bg-green-700' : ''}> D. {data?.option4} </p>
+
+                        </div>
+
+                    })
+                }
+
+
             </div>
         </>
     )

@@ -21,9 +21,7 @@ function QuestionGrid() {
             }
             
           }
-          /* else{
-            setPointerOfCurrentQuestion(clickedQuestion)
-          } */
+         
     
     }
     

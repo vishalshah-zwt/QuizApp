@@ -4,9 +4,7 @@ import { useFormik } from 'formik';
 import { MyContext } from '../context/MyContext';
 import QuestionGrid from '../components/QuestionGrid';
 import Result from '../components/Result';
-import { useTimer } from 'react-timer-hook';
 import QuizValidationSchema from '../schema/QuizValidation';
-import Timer from '../components/Timer';
 
 
 interface initialValues {
@@ -15,13 +13,17 @@ interface initialValues {
     answers?: any
     isSubmitted?: boolean,
     visitedQuestions?: Array<number>
-    timer?: any
+    timeTaken?: any,
+    totalTime:any,
+    updatedAnswers:any,
 }
 const Quiz: React.FC = () => {
 
-    // const storage = ((localStorage.getItem('Data')) ? JSON.parse((localStorage.getItem('Data') || '{}') : '{}')) 
+
+
+    const storedPointerOfCurrentQuestion = (JSON.parse(localStorage.getItem('pointerOfCurrentQuestion') || '0'))
     const storage = localStorage.getItem('Data') ? (JSON.parse(localStorage.getItem('Data') || '{}')) : {}
-    const [pointerOfCurrentQuestion, setPointerOfCurrentQuestion] = useState<number>(Number(storage.pointerOfCurrentQuestion) || 0)
+    const [pointerOfCurrentQuestion, setPointerOfCurrentQuestion] = useState<number>(Number(storedPointerOfCurrentQuestion || 0))
 
 
 
@@ -39,7 +41,9 @@ const Quiz: React.FC = () => {
         ],
         visitedQuestions: [0],
         isSubmitted: storage?.isSubmitted || false,
-        
+        timeTaken: 0,
+        updatedAnswers:[],
+        totalTime:(quiz.length * 30)
     }
 
     const { values, handleChange, setFieldValue, handleSubmit, validateForm } = useFormik({
@@ -50,11 +54,11 @@ const Quiz: React.FC = () => {
         }
     })
 
-    
-  
-   /*  const timer = new Date()
-    timer.setSeconds(10) */
 
+
+
+    const [Time, setTime] = useState(10)
+    var time: any
     //EVENT HANDLERS STARTED
     const [errors, setErrors] = useState<any>()
     const handleNext = async (e: any) => {
@@ -65,39 +69,25 @@ const Quiz: React.FC = () => {
             const answersVariable = values.answers
             answersVariable.push({ answer: '', index: '' })
             setFieldValue(`answers`, answersVariable)
-
             if (pointerOfCurrentQuestion < quiz.length - 1) {
+                setFieldValue('timeTaken', (values?.timeTaken + ((10-Time)+1)))
+                setTime(10)
                 setPointerOfCurrentQuestion(pointerOfCurrentQuestion + 1)
                 setFieldValue('currentQuestion', quiz[pointerOfCurrentQuestion + 1])
                 let visitedQuestionsVariable = values?.visitedQuestions
                 visitedQuestionsVariable?.push(pointerOfCurrentQuestion + 1)
                 setFieldValue('visitedQuestions', visitedQuestionsVariable)
             }
+            else {
+                setFieldValue('isSubmitted', true)
+            }
         }
 
     }
-    const handlePrevious = (e: object) => {
-        setPointerOfCurrentQuestion(pointerOfCurrentQuestion - 1)
-    }
+
 
     const handleCustomChange = (e: any) => {
         console.log(e.target.value, "&&")
-        /* const answerVariable = values.answers
-        if (values?.answers?.find((answer: any) => answer.index === pointerOfCurrentQuestion)) {
-            values?.answers?.map((answer: any) => {
-                if (answer.index === pointerOfCurrentQuestion) {
-                    answer.answer = e.target.value
-                }
-                else {
-                    return answer
-                }
-            })
-        }
-        else {
-            answerVariable.push({ answer: e.target.value, index: pointerOfCurrentQuestion })
-        }
-        setFieldValue(`answers`, answerVariable) */
-
         setFieldValue(`answers[${pointerOfCurrentQuestion}]`, {
             answer: e.target.value,
             index: pointerOfCurrentQuestion
@@ -105,40 +95,67 @@ const Quiz: React.FC = () => {
         )
     }
 
-    const calculateResult = () => {
-        setFieldValue('isSubmitted', true)
-        let allAnswersVariable: any = []
-        let correctAnswersVariable: any = []
-        let wrongAnswersVariable: any = []
-        let skippedQuestionsVariable: any = []
-        let score = 0
+    const calculateResult = async () => {
+        const errorsVariable: any = await validateForm()
+        setErrors(errorsVariable)
+        console.log(errorsVariable, "errorsVariable")
+        if (Object.keys(errorsVariable).length === 0 || errorsVariable.answers[pointerOfCurrentQuestion] === undefined) {
+            setFieldValue('isSubmitted', true)
+            let allAnswersVariable: any = []
+            let correctAnswersVariable: any = []
+            let wrongAnswersVariable: any = []
+            let skippedQuestionsVariable: any = []
+            let updatedAnswerVariable: any = []
 
-        values?.answers?.map((answer: any) => {
-            if (quiz[answer.index].answer === answer.answer) {
-                correctAnswersVariable.push({ question: quiz[answer.index], index: answer.index })
-                allAnswersVariable.push({ question: quiz[answer.index], index: answer.index, answerType: "right" })
-                score += 1
-            }
-            else {
-                wrongAnswersVariable.push({ question: quiz[answer.index].question, answer: answer.answer, index: answer.index })
-                allAnswersVariable.push({ question: quiz[answer.index], index: answer.index, answerType: "wrong" })
-            }
+            let score = 0
 
-        })
+            values?.answers?.map((answer: any) => {
+                if (quiz[answer.index]?.answer === answer.answer) {
+                    correctAnswersVariable?.push({ question: quiz[answer.index], index: answer.index })
+                    allAnswersVariable?.push({ question: quiz[answer.index], index: answer.index, answerType: "right" })
+                    score += 1
+                }
+                else if (quiz[answer.index]?.question === undefined) {
+                    skippedQuestionsVariable?.push({ question: quiz?.[answer.index]?.question, answer: answer.answer, index: answer.index })
+                    allAnswersVariable?.push({ question: quiz[answer.index], index: answer.index, answerType: "skipped" })
+                }
 
-
-        quiz?.map((question, indx) => {
-            if (!values?.answers?.find((elem: any) => indx === elem.index)) {
-                skippedQuestionsVariable.push({ question: question, index: indx })
-            }
-        })
+                else {
+                    wrongAnswersVariable?.push({ question: quiz?.[answer.index]?.question, answer: answer.answer, index: answer.index })
+                    allAnswersVariable?.push({ question: quiz?.[answer.index], index: answer.index, answerType: "wrong" })
+                }
 
 
-        setFieldValue('result.skippedQuestions', skippedQuestionsVariable)
-        setFieldValue('result.correctAnswers', correctAnswersVariable)
-        setFieldValue('result.score', score)
-        setFieldValue('result.wrongAnswers', wrongAnswersVariable)
-        setFieldValue('result.allAnswers', allAnswersVariable)
+            })
+
+            quiz?.map((data,indx)=>{
+                   updatedAnswerVariable.push({
+                    question:data?.question , 
+                    option1:data?.A ,
+                    option2:data?.B ,
+                    option3:data?.C ,
+                    option4:data?.D ,
+                    selectedAns:values?.answers?.[indx]?.answer,
+                    correctAnswer:data?.answer
+                })
+            })
+
+
+            quiz?.map((question, indx) => {
+                if (!values?.answers?.find((elem: any) => indx === elem.index)) {
+                    skippedQuestionsVariable.push({ question: question, index: indx })
+                }
+            })
+
+
+            setFieldValue('updatedAnswers', updatedAnswerVariable)
+            setFieldValue('result.skippedQuestions', skippedQuestionsVariable)
+            setFieldValue('result.correctAnswers', correctAnswersVariable)
+            setFieldValue('result.score', score)
+            setFieldValue('result.wrongAnswers', wrongAnswersVariable)
+            setFieldValue('result.allAnswers', allAnswersVariable)
+
+        }
     }
 
     const handleReset = () => {
@@ -155,8 +172,10 @@ const Quiz: React.FC = () => {
         setFieldValue('answers', [{ answer: '', index: '' }])
         setFieldValue('isSubmitted', false)
         setFieldValue('visitedQuestions', [0])
-        const time = new Date();
-        time.setSeconds(time.getSeconds() + (30));
+        setFieldValue('totalTime', 0)
+        setTime(10)
+        setFieldValue('timeTaken', 0)
+        
     }
 
     useEffect(() => {
@@ -169,24 +188,100 @@ const Quiz: React.FC = () => {
 
 
 
- 
+    useEffect(() => {
+        if (values?.isSubmitted === false) {
+
+            time = setInterval(() => {
+                if (Time > 0) {
+                    setTime(Time => Time - 1)
+                }
+                else {
+
+                    if (pointerOfCurrentQuestion < (quiz?.length - 1)) {
+                        setPointerOfCurrentQuestion(pointerOfCurrentQuestion + 1)
+                        setFieldValue('currentQuestion', quiz[pointerOfCurrentQuestion + 1])
+                        const answersVariable = values.answers
+                        answersVariable.push({ answer: '', index: '' })
+                        setFieldValue(`answers`, answersVariable)
+                        setFieldValue('timeTaken', (values?.timeTaken + ((10-Time)+1)))
+                        setTime(10)
+                    }
+                    else {
+                        setFieldValue('isSubmitted', true)
+                        let allAnswersVariable: any = []
+                        let correctAnswersVariable: any = []
+                        let wrongAnswersVariable: any = []
+                        let skippedQuestionsVariable: any = []
+                        let score = 0
+
+                        values?.answers?.map((answer: any) => {
+                            if (quiz[answer.index]?.answer === answer.answer) {
+                                correctAnswersVariable?.push({ question: quiz[answer.index], index: answer.index })
+                                allAnswersVariable?.push({ question: quiz[answer.index], index: answer.index, answerType: "right" })
+                                score += 1
+                            }
+                            else if (quiz[answer.index]?.question === undefined) {
+                                skippedQuestionsVariable?.push({ question: quiz?.[answer.index]?.question, answer: answer.answer, index: answer.index })
+                                allAnswersVariable?.push({ question: quiz[answer.index], index: answer.index, answerType: "skipped" })
+                            }
+
+                            else {
+                                wrongAnswersVariable?.push({ question: quiz?.[answer.index]?.question, answer: answer.answer, index: answer.index })
+                                allAnswersVariable?.push({ question: quiz?.[answer.index], index: answer.index, answerType: "wrong" })
+                            }
+
+
+                        })
+
+
+                        quiz?.map((question, indx) => {
+                            if (!values?.answers?.find((elem: any) => indx === elem.index)) {
+                                skippedQuestionsVariable.push({ question: question, index: indx })
+                            }
+                        })
+
+
+                        setFieldValue('result.skippedQuestions', skippedQuestionsVariable)
+                        setFieldValue('result.correctAnswers', correctAnswersVariable)
+                        setFieldValue('result.score', score)
+                        setFieldValue('result.wrongAnswers', wrongAnswersVariable)
+                        setFieldValue('result.allAnswers', allAnswersVariable)
+
+                        clearInterval(time)
+                    }
+                }
+            }, 1000)
+
+            return () => {
+                clearInterval(time)
+            }
+        }
+        else {
+            setTime(0)
+        }
+    }, [Time])
 
 
     //STORING DATA TO LOCAL STORAGE
-    localStorage.setItem('Data', JSON.stringify(values))
-    localStorage.setItem('pointerOfCurrentQuestion', String(pointerOfCurrentQuestion))
-    
-    
+    /*  localStorage.setItem('Data', JSON.stringify(values))
+     localStorage.setItem('pointerOfCurrentQuestion', JSON.stringify(pointerOfCurrentQuestion)) */
+
+    console.log(values, "**")
     return (
         <>
-            <MyContext.Provider value={{ pointerOfCurrentQuestion, setPointerOfCurrentQuestion, values, validateForm, setErrors }}>
-                <Timer />
+            <MyContext.Provider value={{ pointerOfCurrentQuestion, setPointerOfCurrentQuestion, values, validateForm, setErrors, setFieldValue }}>
 
+                {
+                    !values?.isSubmitted ?
+                    "Time Left:  " + Time
+                    :
+                    ''   
+                }
                 <div className='SuperContainer'>
 
                     {
                         values?.isSubmitted === false ?
-                        <>
+                            <>
                                 <div className='QuestionsContainer border  my-6 mx-auto w-[60%]'>
                                     <p className='text-xl'>
                                         <b>{pointerOfCurrentQuestion + 1}</b>. {quiz?.[pointerOfCurrentQuestion]?.question}
@@ -244,21 +339,6 @@ const Quiz: React.FC = () => {
                                 </div>
                                 <div className='ButtonContainer my-8 mx-auto border w-[60%]'>
                                     {
-                                        pointerOfCurrentQuestion > 0 ?
-                                            <>
-                                                <button
-                                                    type="button"
-                                                    className="focus:outline-none text-white bg-yellow-400 hover:bg-yellow-500 focus:ring-4 focus:ring-yellow-300 font-medium rounded-lg text-lg px-5 py-2.5 me-2 mb-2 dark:focus:ring-yellow-900"
-                                                    onClick={handlePrevious}
-                                                >
-                                                    Previous
-                                                </button>
-
-                                            </>
-                                            :
-                                            null
-                                    }
-                                    {
                                         pointerOfCurrentQuestion < quiz.length - 1 ?
                                             <>
                                                 <button
@@ -284,7 +364,7 @@ const Quiz: React.FC = () => {
                                             </>
 
                                     }
-                                    
+
                                 </div >
                                 <QuestionGrid />
                             </>
